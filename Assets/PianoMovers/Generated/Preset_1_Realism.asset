@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 626d1389337f1554f81a347ef5fde4b4, type: 3}
+  m_Name: Preset_1_Realism
+  m_EditorClassIdentifier: Assembly-CSharp::PianoMovers.PianoPhysicsSettings
+  presetName: "\u0420\u0435\u0430\u043B\u0438\u0437\u043C"
+  pianoMass: 100
+  pianoLinearDamping: 0.2
+  pianoAngularDamping: 1
+  pianoMaxSpeed: 8
+  pianoMaxAngularSpeed: 6
+  playerMass: 10
+  moveSpeed: 4.5
+  acceleration: 25
+  carrySpeedMultiplier: 0.4
+  turnSpeed: 720
+  grabRadius: 1.4
+  reach: 0.7
+  carryHandHeight: -0.5
+  liftHandHeight: 0.2
+  gripSpring: 1500
+  gripDamper: 150
+  maxGripForce: 560
+  reactionShare: 0.5
+  breakDistance: 1.6
+  breakGraceTime: 0.3
+  heldUprightStrength: 8
+  heldUprightDamping: 2
+  heldYawDamping: 1
+  staminaMax: 100
+  staminaDrainPerSecond: 25
+  staminaRegenPerSecond: 25
+  staminaRegrabThreshold: 0.3
+  noteThreshold: 0.5
+  loudImpact: 4
+  damageThreshold: 1.5
+  detunePerDamage: 0.35
+  maxDetuneSemitones: 1.5

@@ -1,0 +1,21 @@
+# Текстовые файлы — единые переносы строк на Windows и Mac
+* text=auto
+
+# Unity YAML
+*.unity text
+*.prefab text
+*.asset text
+*.mat text
+*.meta text
+*.cs text diff=csharp
+
+# Бинарные файлы
+*.png binary
+*.jpg binary
+*.psd binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.fbx binary
+*.ttf binary
+*.otf binary
