@@ -13,6 +13,8 @@ namespace PianoMovers
         public Vector2 Look;
         public bool Grab;
         public bool Lift;
+        /// <summary>Осмотреться: камера крутится, тело и пианино — нет.</summary>
+        public bool FreeLook;
     }
 
     public interface IPlayerInputSource

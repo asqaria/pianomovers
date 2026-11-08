@@ -37,6 +37,7 @@ namespace PianoMovers
                     state.Move = new Vector2(Axis(kb.dKey, kb.aKey), Axis(kb.wKey, kb.sKey));
                     state.Grab = kb.spaceKey.isPressed;
                     state.Lift = kb.leftShiftKey.isPressed;
+                    state.FreeLook = kb.leftAltKey.isPressed || kb.rightAltKey.isPressed; // на Mac — Option
                 }
                 if (mouse != null)
                 {
@@ -67,6 +68,7 @@ namespace PianoMovers
                 state.Look += pad.rightStick.ReadValue() * stickLookSpeed * dt;
                 state.Grab |= pad.rightTrigger.isPressed || pad.rightShoulder.isPressed;
                 state.Lift |= pad.leftTrigger.isPressed || pad.leftShoulder.isPressed;
+                state.FreeLook |= pad.rightStickButton.isPressed;
             }
 
             state.Move = Vector2.ClampMagnitude(state.Move, 1f);

@@ -47,6 +47,7 @@ namespace PianoMovers
             }
 
             if (kb == null || !local) return;
+            if (kb.vKey.wasPressedThisFrame) LocalPlayerCamera.PreferFirstPerson = !LocalPlayerCamera.PreferFirstPerson;
             if (kb.rKey.wasPressedThisFrame && RoundManager.Instance) RoundManager.Instance.RequestReset();
             if (kb.cKey.wasPressedThisFrame && piano)
             {
@@ -66,6 +67,7 @@ namespace PianoMovers
             label ??= new GUIStyle(GUI.skin.label) { fontSize = 16 };
             center ??= new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.MiddleCenter };
 
+            DrawTeammates(local);
             DrawPlayer(local);
             DrawGlobal(Net.IsServer);
         }
@@ -76,7 +78,8 @@ namespace PianoMovers
             var s = PhysicsTuning.Current;
             string keys = host ? "[1][2][3] — пресет   R — новый раунд   " : "";
             Shadowed(new Rect(10f, y, 1200f, 24f),
-                $"Пресет: {(s ? s.presetName : "—")}   {keys}C — концерт   Esc — мышь", label);
+                $"Пресет: {(s ? s.presetName : "—")}   {keys}C — концерт   Alt — осмотреться   " +
+                $"V — камера: {(LocalPlayerCamera.PreferFirstPerson ? "всегда из глаз" : "за плечом, пока несёшь")}   Esc — мышь", label);
             y += 22f;
 
             if (piano)
@@ -92,6 +95,35 @@ namespace PianoMovers
                     Shadowed(new Rect(10f, y, 1200f, 24f), $"ДОСТАВЛЕНО за {delivery.DeliveryTime:0} с. Оплата: {delivery.FinalScore} из 1000", label);
                 else if (delivery.SettleProgress > 0f)
                     Shadowed(new Rect(10f, y, 1200f, 24f), $"Ставим на место… {delivery.SettleProgress * 100f:0}%", label);
+            }
+        }
+
+        /// <summary>Метки над напарниками: видно даже сквозь пианино, кто где и что делает.</summary>
+        void DrawTeammates(PlayerController local)
+        {
+            var cam = LocalPlayerCamera.Current;
+            if (!cam) return;
+
+            foreach (var grab in GrabSystem.All)
+            {
+                var mate = grab.GetComponent<PlayerController>();
+                if (!mate || mate == local || !mate.IsSpawned) continue;
+
+                Vector3 screen = cam.WorldToScreenPoint(mate.transform.position + Vector3.up * 1.3f);
+                if (screen.z <= 0f) continue; // за спиной
+
+                var stamina = mate.GetComponent<PlayerStamina>();
+                string state = stamina && stamina.Exhausted ? "выдохся!"
+                    : grab.IsLifting ? "поднимает"
+                    : grab.IsHolding ? "держит"
+                    : "";
+                string text = $"Игрок {mate.OwnerClientId + 1}{(state.Length > 0 ? " — " + state : "")}";
+
+                var rect = new Rect(screen.x - 120f, Screen.height - screen.y - 12f, 240f, 24f);
+                var old = GUI.color;
+                GUI.color = mate.color;
+                Shadowed(rect, text, center);
+                GUI.color = old;
             }
         }
 

@@ -120,7 +120,7 @@ namespace PianoMovers
 
             if (source == null) return;
             CurrentInput = source.ReadInput();
-            Look.ApplyLook(CurrentInput.Look);
+            Look.ApplyLook(CurrentInput.Look, CurrentInput.FreeLook);
         }
 
         void FixedUpdate()
