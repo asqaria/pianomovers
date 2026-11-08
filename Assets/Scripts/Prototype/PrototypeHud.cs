@@ -124,6 +124,12 @@ namespace PianoMovers
             Fill(new Rect(c.x - size / 2f, c.y - size / 2f, size, size), dot);
             if (hint != null) Shadowed(new Rect(c.x - 200f, c.y + 14f, 400f, 24f), hint, center);
 
+            // Подсказка техники на лестнице.
+            var held = grab ? grab.HeldPiano : null;
+            if (held && held.OnStairs)
+                Shadowed(new Rect(c.x - 340f, c.y + 40f, 680f, 24f),
+                    "Лестница: тащите волоком по ступеням — верхний тянет к себе, нижний толкает. Не бросайте!", center);
+
             if (stamina)
             {
                 float w = 260f, h = 10f;

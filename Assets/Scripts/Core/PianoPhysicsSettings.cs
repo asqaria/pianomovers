@@ -20,6 +20,15 @@ namespace PianoMovers
         public float pianoMaxSpeed = 6f;
         public float pianoMaxAngularSpeed = 3f;
 
+        [Header("Трение пианино")]
+        [Tooltip("По полу")]
+        public float floorFriction = 0.5f;
+        [Tooltip("На лестнице, пока держат: скользит по кромкам, как на салазках. " +
+                 "0,25 на «Середине» — одному не затащить (нужно ~530 Н при силе 520), вдвоём — легко")]
+        public float stairFrictionHeld = 0.25f;
+        [Tooltip("На лестнице, если бросили: меньше уклона (0,5) — медленно уезжает вниз")]
+        public float stairFrictionFree = 0.35f;
+
         [Header("Игрок")]
         [Min(1f)] public float playerMass = 10f;
         public float moveSpeed = 4.5f;
