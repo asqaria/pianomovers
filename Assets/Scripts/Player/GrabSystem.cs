@@ -158,7 +158,7 @@ namespace PianoMovers
         void GrabAt(PianoBody piano, Vector3 point, PianoPhysicsSettings s)
         {
             var obj = piano.GetComponent<NetworkObject>();
-            if (!obj) return;
+            if (!obj || !obj.IsSpawned) return; // несетевую копию схватить по сети нельзя
 
             Vector3 offset = point - player.Body.position;
             float height = Mathf.Clamp(offset.y, s.carryHandHeight, s.liftHandHeight);

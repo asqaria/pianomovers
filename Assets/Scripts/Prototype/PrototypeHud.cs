@@ -10,8 +10,8 @@ namespace PianoMovers
     /// </summary>
     public class PrototypeHud : MonoBehaviour
     {
-        public DeliveryZone delivery;
-        public PianoCondition piano;
+        DeliveryZone delivery;
+        PianoCondition piano;
 
         GUIStyle label, center;
 
@@ -22,6 +22,10 @@ namespace PianoMovers
 
         void Update()
         {
+            // Пианино и зону создаёт хост по сети — находим их, когда появятся.
+            if (!delivery) delivery = DeliveryZone.Current;
+            if (!piano) piano = FindFirstObjectByType<PianoCondition>();
+
             var local = PlayerController.Local;
             var kb = Keyboard.current;
             var mouse = Mouse.current;

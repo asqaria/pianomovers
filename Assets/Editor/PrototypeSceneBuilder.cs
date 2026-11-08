@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using Unity.Netcode;
@@ -71,18 +72,20 @@ namespace PianoMovers.EditorTools
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
-            // Префаб игрока: по сети его создаёт NetworkManager для каждого подключившегося.
+            // Сетевые объекты — только префабы, в сцене их нет:
+            // игроков создаёт NetworkManager, пианино, зону и объект игры — хост при старте (NetworkBootstrap).
             var looks = new PlayerMaterials { Uniform = mP1, Skin = mSkin, Dark = mDark, EyeWhite = mEyeWhite, Pupil = mPupil };
-            var playerPrefab = BuildPlayerPrefab(looks);
-            BuildNetworkManager(playerPrefab);
+            var playerPrefab = SavePrefab(BuildPlayerObject(looks), "Player");
+            var pianoPrefab = SavePrefab(BuildPiano(Vector3.zero, pianoMats), "Piano");
+            var zonePrefab = SavePrefab(BuildDeliveryZone(mZone), "DeliveryZone");
+            var gamePrefab = SavePrefab(BuildGame(presets), "Game");
+            BuildNetworkManager(playerPrefab, pianoPrefab, zonePrefab, gamePrefab);
 
-            // Общий сетевой объект: пресеты физики и раунды.
-            var game = new GameObject("Game");
-            game.AddComponent<NetworkObject>();
-            var tuning = game.AddComponent<PhysicsTuning>();
-            tuning.presets = presets;
-            tuning.startIndex = 1;
-            game.AddComponent<RoundManager>();
+            var bootstrap = new GameObject("NetworkBootstrap").AddComponent<NetworkBootstrap>();
+            bootstrap.pianoPrefab = pianoPrefab;
+            bootstrap.deliveryZonePrefab = zonePrefab;
+            bootstrap.gamePrefab = gamePrefab;
+            bootstrap.pianoPosition = new Vector3(0f, 0.6f * PianoScale, -6f);
 
             // --- Уровень ---
             var level = new GameObject("Level").transform;
@@ -109,41 +112,21 @@ namespace PianoMovers.EditorTools
             Box("Upper_Rail_Right", level, new Vector3(5f, UpperY + 0.5f, upperCenterZ), new Vector3(0.2f, 1f, upperDepth), mWall);
             Box("Upper_Rail_Back", level, new Vector3(0f, UpperY + 0.5f, StairEndZ + upperDepth), new Vector3(10f, 1f, 0.2f), mWall);
 
-            // --- Зона доставки ---
-            var zoneGo = new GameObject("DeliveryZone");
-            zoneGo.transform.position = new Vector3(0f, UpperY + 0.6f, upperCenterZ + 0.5f);
-            var zoneCollider = zoneGo.AddComponent<BoxCollider>();
-            zoneCollider.size = new Vector3(3f, 1.2f, 3f);
-            zoneCollider.isTrigger = true;
-            zoneGo.AddComponent<NetworkObject>();
-            var delivery = zoneGo.AddComponent<DeliveryZone>();
-            Box("ZoneMarker", zoneGo.transform, zoneGo.transform.position + new Vector3(0f, -0.59f, 0f),
-                new Vector3(3f, 0.02f, 3f), mZone, keepCollider: false);
-
-            // --- Пианино ---
-            var piano = BuildPiano(new Vector3(0f, 0.6f * PianoScale, -6f), pianoMats);
+            bootstrap.deliveryZonePosition = new Vector3(0f, UpperY + 0.6f, upperCenterZ + 0.5f);
 
             // --- Обзорная камера (до подключения) и интерфейс ---
             var cam = Camera.main;
             if (cam)
             {
-                var follow = cam.gameObject.AddComponent<CoopCamera>();
-                follow.targets = new[] { piano.transform };
-                cam.transform.position = piano.transform.position + follow.offset;
-                cam.transform.rotation = Quaternion.LookRotation(-follow.offset, Vector3.up);
+                cam.transform.position = new Vector3(0f, 7f, -16f);
+                cam.transform.LookAt(new Vector3(0f, 1f, -3f));
             }
 
-            var hud = new GameObject("UI").AddComponent<PrototypeHud>();
-            hud.delivery = delivery;
-            hud.piano = piano.GetComponent<PianoCondition>();
-            hud.gameObject.AddComponent<ConnectionMenu>();
+            var ui = new GameObject("UI");
+            ui.AddComponent<PrototypeHud>();
+            ui.AddComponent<ConnectionMenu>();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
-            // Переоткрыть и сохранить ещё раз: сетевые объекты на сцене получают свои ID,
-            // только когда сцена уже лежит файлом.
-            var reopened = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            EditorSceneManager.MarkSceneDirty(reopened);
-            EditorSceneManager.SaveScene(reopened);
             AddToBuildSettings(ScenePath);
             AssetDatabase.SaveAssets();
             Debug.Log("Piano Movers: сцена прототипа собрана → " + ScenePath + ". Нажмите Play.");
@@ -273,15 +256,55 @@ namespace PianoMovers.EditorTools
             return root;
         }
 
-        static GameObject BuildPlayerPrefab(PlayerMaterials m)
+        /// <summary>Сохранить объект префабом и убедиться, что у его NetworkObject записан сетевой ID.</summary>
+        static GameObject SavePrefab(GameObject go, string name)
         {
-            var go = BuildPlayerObject(m);
-            var prefab = PrefabUtility.SaveAsPrefabAsset(go, Root + "/Player.prefab");
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, $"{Root}/{name}.prefab");
             UnityEngine.Object.DestroyImmediate(go);
+
+            var netObject = prefab.GetComponent<NetworkObject>();
+            if (netObject)
+            {
+                // NGO вычисляет ID в OnValidate; при создании из кода он может не вызваться.
+                var validate = typeof(NetworkObject).GetMethod("OnValidate",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                validate?.Invoke(netObject, null);
+                EditorUtility.SetDirty(netObject);
+                AssetDatabase.SaveAssetIfDirty(prefab);
+
+                var hash = new SerializedObject(netObject).FindProperty("GlobalObjectIdHash");
+                uint id = hash != null ? hash.uintValue : 0;
+                if (id == 0) Debug.LogWarning($"Piano Movers: у префаба {name} не записался сетевой ID — сообщите об этом.");
+                else Debug.Log($"Piano Movers: префаб {name}, сетевой ID {id}");
+            }
             return prefab;
         }
 
-        static void BuildNetworkManager(GameObject playerPrefab)
+        static GameObject BuildDeliveryZone(Material zoneMat)
+        {
+            var go = new GameObject("DeliveryZone");
+            var box = go.AddComponent<BoxCollider>();
+            box.size = new Vector3(3f, 1.2f, 3f);
+            box.isTrigger = true;
+            go.AddComponent<NetworkObject>();
+            go.AddComponent<DeliveryZone>();
+            Part(PrimitiveType.Cube, "ZoneMarker", go.transform, new Vector3(0f, -0.59f, 0f), new Vector3(3f, 0.02f, 3f), zoneMat);
+            return go;
+        }
+
+        static GameObject BuildGame(PianoPhysicsSettings[] presets)
+        {
+            // Общий сетевой объект: пресеты физики и раунды.
+            var go = new GameObject("Game");
+            go.AddComponent<NetworkObject>();
+            var tuning = go.AddComponent<PhysicsTuning>();
+            tuning.presets = presets;
+            tuning.startIndex = 1;
+            go.AddComponent<RoundManager>();
+            return go;
+        }
+
+        static void BuildNetworkManager(GameObject playerPrefab, params GameObject[] worldPrefabs)
         {
             var go = new GameObject("NetworkManager");
             var nm = go.AddComponent<NetworkManager>();
@@ -291,7 +314,7 @@ namespace PianoMovers.EditorTools
             nm.NetworkConfig.PlayerPrefab = playerPrefab;
             nm.NetworkConfig.ConnectionApproval = false;
 
-            // Список сетевых префабов (в нём игрок).
+            // Список сетевых префабов: игрок, пианино, зона, объект игры.
             string listPath = Root + "/NetworkPrefabs.asset";
             var list = AssetDatabase.LoadAssetAtPath<NetworkPrefabsList>(listPath);
             if (!list)
@@ -299,10 +322,15 @@ namespace PianoMovers.EditorTools
                 list = ScriptableObject.CreateInstance<NetworkPrefabsList>();
                 AssetDatabase.CreateAsset(list, listPath);
             }
-            bool registered = false;
-            foreach (var entry in list.PrefabList)
-                if (entry.Prefab == playerPrefab) registered = true;
-            if (!registered) list.Add(new NetworkPrefab { Prefab = playerPrefab });
+            var all = new List<GameObject> { playerPrefab };
+            all.AddRange(worldPrefabs);
+            foreach (var prefab in all)
+            {
+                bool registered = false;
+                foreach (var entry in list.PrefabList)
+                    if (entry.Prefab == prefab) registered = true;
+                if (!registered) list.Add(new NetworkPrefab { Prefab = prefab });
+            }
             EditorUtility.SetDirty(list);
 
             nm.NetworkConfig.Prefabs.NetworkPrefabsLists.Clear();

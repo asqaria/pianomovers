@@ -50,6 +50,7 @@ namespace PianoMovers
 
         void ResetRound()
         {
+            if (!piano) OnNetworkSpawn(); // пианино появилось позже нас — запомнить старт сейчас
             if (piano)
             {
                 var body = piano.Body;
