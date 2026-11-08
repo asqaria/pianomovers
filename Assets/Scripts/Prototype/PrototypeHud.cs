@@ -97,8 +97,8 @@ namespace PianoMovers
             var grab = p.GetComponent<GrabSystem>();
             var stamina = p.GetComponent<PlayerStamina>();
             bool gamepad = Gamepad.current != null && Mouse.current == null;
-            string grabKey = gamepad ? "RT" : "ЛКМ";
-            string liftKey = gamepad ? "LT" : "ПКМ";
+            string grabKey = gamepad ? "RT" : "ЛКМ / Space";
+            string liftKey = gamepad ? "LT" : "ПКМ / Shift";
 
             // Прицел: точка; на пианино в досягаемости — крупнее и жёлтая; держишь — цвет игрока.
             Color dot = new Color(1f, 1f, 1f, 0.8f);
